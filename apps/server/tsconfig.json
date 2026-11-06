@@ -1,10 +1,20 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
     "rootDir": "../../",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "paths": {
+      "@ludo/shared-types": ["../../packages/shared-types/src/index.ts"],
+      "@ludo/validation": ["../../packages/validation/src/index.ts"],
+      "@ludo/game-rules": ["../../packages/game-rules/src/index.ts"]
+    }
   },
   "include": [
     "src/**/*",

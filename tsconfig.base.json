@@ -11,11 +11,10 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@ludo/shared-types": ["packages/shared-types/src/index.ts"],
-      "@ludo/validation": ["packages/validation/src/index.ts"],
-      "@ludo/game-rules": ["packages/game-rules/src/index.ts"]
+      "@ludo/shared-types": ["./packages/shared-types/src/index.ts"],
+      "@ludo/validation": ["./packages/validation/src/index.ts"],
+      "@ludo/game-rules": ["./packages/game-rules/src/index.ts"]
     }
   }
 }
