@@ -1,0 +1,12 @@
+{
+  "name": "@ludo/validation",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@ludo/shared-types": "*",
+    "zod": "^3.23.8"
+  },
+  "private": true
+}

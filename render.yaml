@@ -1,0 +1,29 @@
+services:
+  # 1. Real-time Multiplayer Backend Server (Socket.IO + Express)
+  - type: web
+    name: ludo-server
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm --workspace=@ludo/server run build
+    startCommand: npm --workspace=@ludo/server run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+
+  # 2. Frontend Next.js Web Application
+  - type: web
+    name: ludo-web
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm --workspace=@ludo/web run build
+    startCommand: npm --workspace=@ludo/web run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SERVER_URL
+        fromService:
+          type: web
+          name: ludo-server
+          property: host
