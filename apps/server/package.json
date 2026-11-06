@@ -12,6 +12,11 @@
     "@ludo/game-rules": "*",
     "@ludo/shared-types": "*",
     "@ludo/validation": "*",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -20,15 +25,11 @@
     "ioredis": "^5.4.1",
     "pg": "^8.13.1",
     "socket.io": "^4.8.1",
+    "typescript": "^5.7.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/cookie-parser": "^1.4.8",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/pg": "^8.11.10",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.0"
+    "tsx": "^4.19.2"
   },
   "private": true
 }

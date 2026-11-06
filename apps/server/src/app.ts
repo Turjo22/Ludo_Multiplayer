@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -44,7 +44,7 @@ export function createApp(sessionManager: SessionManager, gameManager: GameManag
   app.use(express.json());
 
   // Health check endpoint
-  app.get('/health', async (req, res) => {
+  app.get('/health', async (_req: Request, res: Response) => {
     res.json({
       status: 'ok',
       uptime: process.uptime(),
@@ -54,7 +54,7 @@ export function createApp(sessionManager: SessionManager, gameManager: GameManag
   });
 
   // Get public session state
-  app.get('/api/sessions/:sessionId', async (req, res) => {
+  app.get('/api/sessions/:sessionId', async (req: Request, res: Response) => {
     try {
       const sessionId = req.params.sessionId.toUpperCase();
       const session = await sessionManager.getSession(sessionId);
@@ -68,7 +68,7 @@ export function createApp(sessionManager: SessionManager, gameManager: GameManag
   });
 
   // Create session
-  app.post('/api/sessions', async (req, res) => {
+  app.post('/api/sessions', async (req: Request, res: Response) => {
     try {
       const parsed = CreateSessionSchema.parse(req.body);
       const result = await sessionManager.createSession(parsed.mode, parsed.playerName);
@@ -88,7 +88,7 @@ export function createApp(sessionManager: SessionManager, gameManager: GameManag
   });
 
   // Join session
-  app.post('/api/sessions/:sessionId/join', async (req, res) => {
+  app.post('/api/sessions/:sessionId/join', async (req: Request, res: Response) => {
     try {
       const sessionId = req.params.sessionId.toUpperCase();
       const parsed = JoinSessionSchema.parse({
@@ -112,7 +112,7 @@ export function createApp(sessionManager: SessionManager, gameManager: GameManag
   });
 
   // Reconnect player
-  app.post('/api/sessions/:sessionId/reconnect', async (req, res) => {
+  app.post('/api/sessions/:sessionId/reconnect', async (req: Request, res: Response) => {
     try {
       const sessionId = req.params.sessionId.toUpperCase();
       const cookieToken = req.cookies[`ludo_reconnect_${sessionId}`];
@@ -137,7 +137,7 @@ export function createApp(sessionManager: SessionManager, gameManager: GameManag
   });
 
   // Recover identity using recovery code
-  app.post('/api/sessions/:sessionId/recover', async (req, res) => {
+  app.post('/api/sessions/:sessionId/recover', async (req: Request, res: Response) => {
     try {
       const sessionId = req.params.sessionId.toUpperCase();
       const parsed = RecoverSessionSchema.parse({

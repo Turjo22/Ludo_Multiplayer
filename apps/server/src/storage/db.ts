@@ -15,8 +15,8 @@ export function getDatabasePool(): pg.Pool | null {
       connectionTimeoutMillis: 5000,
     });
 
-    pool.on('error', (err) => {
-      console.warn('[PostgreSQL] Unexpected pool client error:', err.message);
+    pool.on('error', (err: any) => {
+      console.warn('[PostgreSQL] Unexpected pool client error:', err?.message || err);
     });
   }
 

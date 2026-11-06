@@ -16,10 +16,12 @@
     "test:integration": "vitest run tests/integration",
     "test:load": "vitest run tests/load"
   },
+  "dependencies": {
+    "typescript": "^5.7.0"
+  },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.0",
     "vitest": "^2.1.8"
   }
 }

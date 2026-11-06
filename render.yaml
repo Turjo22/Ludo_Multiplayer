@@ -4,7 +4,7 @@ services:
     name: ludo-server
     runtime: node
     plan: free
-    buildCommand: npm install && npm --workspace=@ludo/server run build
+    buildCommand: npm install --include=dev && npm --workspace=@ludo/server run build
     startCommand: npm --workspace=@ludo/server run start
     envVars:
       - key: NODE_ENV
@@ -17,7 +17,7 @@ services:
     name: ludo-web
     runtime: node
     plan: free
-    buildCommand: npm install && npm --workspace=@ludo/web run build
+    buildCommand: npm install --include=dev && npm --workspace=@ludo/web run build
     startCommand: npm --workspace=@ludo/web run start
     envVars:
       - key: NODE_ENV
