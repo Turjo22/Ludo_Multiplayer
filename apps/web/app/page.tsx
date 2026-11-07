@@ -130,39 +130,36 @@ export default function LudoApp() {
     );
   }
 
-  // 3. Active / Paused / Ended Game Screen
+  // 3. Active / Paused / Ended Game Screen (Fixed 100dvh viewport, 0 scrolling)
   const isMyTurn = currentPlayer?.color === gameState.currentTurnColor;
   const canRoll = isMyTurn && !gameState.diceRolledThisTurn && gameState.status === 'ACTIVE';
 
   return (
-    <main className="min-h-screen flex flex-col justify-between text-slate-100 select-none pb-safe">
-      {/* Floating Emoji Reactions Overlay */}
-      <EmojiReactions onSendEmoji={sendEmoji} recentEmojis={emojiEvents} />
-
-      {/* Top Navigation Bar with High-Contrast Elements */}
-      <header className="w-full bg-slate-900/90 backdrop-blur-xl border-b border-amber-500/20 px-3 sm:px-6 py-2.5 flex items-center justify-between sticky top-0 z-40 shadow-xl">
+    <main className="h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col justify-between text-slate-100 select-none pb-safe">
+      {/* Top Navigation Bar: Single-row, zero horizontal overflow */}
+      <header className="w-full h-10 sm:h-12 bg-slate-900/95 backdrop-blur-xl border-b border-amber-500/20 px-2 sm:px-4 py-1 flex items-center justify-between shrink-0 shadow-lg z-40">
         {/* Brand & Session ID */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          <span className="font-black text-sm sm:text-base tracking-tight text-white flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <span className="font-black text-xs sm:text-sm tracking-tight text-white flex items-center gap-1">
             <span className="text-amber-400">🎲</span> Ludo
           </span>
-          <div className="flex items-center gap-1.5 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-amber-500/30 text-xs shadow-inner">
-            <span className="text-slate-400 font-medium">Session:</span>
+          <div className="flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded-lg border border-amber-500/30 text-[11px]">
+            <span className="text-slate-400 hidden xs:inline">ID:</span>
             <span className="font-mono font-bold text-amber-300 tracking-wider">
               {gameState.sessionId}
             </span>
           </div>
         </div>
 
-        {/* Controls, Voice, Sound, and Prominent Leave Button */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Latency badge */}
+        {/* Controls: Sound, Fullscreen, and Prominent Leave Button */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Latency badge (Desktop only) */}
           <div
-            className="hidden xs:flex items-center gap-1 text-[11px] text-slate-400 px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800"
+            className="hidden md:flex items-center gap-1 text-[10px] text-slate-400 px-2 py-0.5 rounded-lg bg-slate-950/80 border border-slate-800"
             title="Connection Latency"
           >
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`w-1.5 h-1.5 rounded-full ${
                 latencyMs < 100 ? 'bg-emerald-400' : latencyMs < 250 ? 'bg-amber-400' : 'bg-rose-400'
               }`}
             />
@@ -172,43 +169,43 @@ export default function LudoApp() {
           {/* Sound Toggle */}
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors text-sm"
+            className="p-1 sm:p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors text-xs"
             title={soundEnabled ? 'Mute Sounds' : 'Enable Sounds'}
           >
             {soundEnabled ? '🔊' : '🔇'}
           </button>
 
-          {/* Fullscreen Toggle */}
+          {/* Fullscreen Toggle (hidden on mobile) */}
           <button
             onClick={toggleFullscreen}
-            className="hidden sm:block p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors text-sm"
+            className="hidden sm:block p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors text-xs"
             title="Toggle Fullscreen"
           >
             {isFullscreen ? '↙' : '⛶'}
           </button>
 
-          {/* Prominent, Clearly Visible Leave Game Button */}
+          {/* Prominent Leave Game Button (Always fully visible, shrink-0) */}
           <button
             onClick={leaveGame}
-            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-red-600 hover:from-rose-600 hover:to-red-500 text-white font-bold text-xs sm:text-sm border border-rose-400/50 shadow-md shadow-rose-950/50 transition-all active:scale-95 flex items-center gap-1.5"
+            className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-rose-700 to-red-600 hover:from-rose-600 hover:to-red-500 text-white font-black text-xs border border-rose-400/50 shadow-md shadow-rose-950/50 transition-all active:scale-95 flex items-center gap-1 shrink-0"
             title="Exit and leave this match"
           >
             <span>🚪</span>
-            <span className="font-black">Leave Game</span>
+            <span>Leave</span>
           </button>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div className="flex-1 w-full max-w-7xl mx-auto p-2 sm:p-4 md:p-6 flex flex-col justify-center">
-        {/* Reconnection and Match Paused Banner */}
+      {/* Main Single-Page Gameplay Layout: Auto-fitted, Zero Scrolling */}
+      <div className="flex-1 min-h-0 w-full max-w-md lg:max-w-xl mx-auto px-2 py-1 flex flex-col justify-between items-center overflow-hidden">
+        {/* Reconnection Banner (if disconnected) */}
         <ReconnectionBanner socketStatus={socketStatus} gameState={gameState} />
 
-        {/* Turn Status Alert & Voice Bar */}
-        <div className="w-full max-w-2xl mx-auto mb-3 flex flex-col sm:flex-row items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-amber-500/20 shadow-lg">
-          <div className="flex items-center gap-2.5">
+        {/* Top Status Header: Turn Alert & Voice Chat */}
+        <div className="w-full flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/80 backdrop-blur-md border border-amber-500/20 shadow-md shrink-0 mb-1">
+          <div className="flex items-center gap-1.5 truncate">
             <span
-              className={`w-3.5 h-3.5 rounded-full ${
+              className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                 gameState.currentTurnColor === 'RED'
                   ? 'bg-red-500'
                   : gameState.currentTurnColor === 'BLUE'
@@ -218,9 +215,9 @@ export default function LudoApp() {
                   : 'bg-emerald-500'
               } animate-ping`}
             />
-            <span className="text-sm sm:text-base font-black text-amber-300 tracking-tight">
+            <span className="text-xs sm:text-sm font-black text-amber-300 tracking-tight truncate">
               {isMyTurn
-                ? '⭐ YOUR TURN TO PLAY!'
+                ? '⭐ YOUR TURN!'
                 : `Turn: ${gameState.players[gameState.currentTurnColor]?.name || gameState.currentTurnColor}`}
             </span>
           </div>
@@ -234,56 +231,41 @@ export default function LudoApp() {
           />
         </div>
 
-        {/* Responsive Grid: Desktop 3-column / Tablet 2-column / Mobile 1-column */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-5 items-center justify-center">
-          {/* Left Column (Desktop) or Top Section (Mobile): Player Cards */}
-          <div className="lg:col-span-3 order-1 grid grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-3">
-            {gameState.colorOrder.map((color) => (
-              <PlayerCard
-                key={color}
-                player={gameState.players[color]}
-                color={color}
-                isCurrentTurn={gameState.currentTurnColor === color}
-                isMe={currentPlayer?.color === color}
-              />
-            ))}
-          </div>
-
-          {/* Center Column: The Scalable Ludo Board */}
-          <div className="lg:col-span-6 order-2 flex justify-center items-center py-1 sm:py-2">
-            <LudoBoard
-              gameState={gameState}
-              myColor={currentPlayer?.color}
-              onTokenClick={handleTokenSelect}
-              disabled={!isMyTurn || !gameState.diceRolledThisTurn || gameState.status !== 'ACTIVE'}
+        {/* Compact Player Strip: Fits 2 or 4 players cleanly across */}
+        <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-1.5 shrink-0 mb-1">
+          {gameState.colorOrder.map((color) => (
+            <PlayerCard
+              key={color}
+              player={gameState.players[color]}
+              color={color}
+              isCurrentTurn={gameState.currentTurnColor === color}
+              isMe={currentPlayer?.color === color}
             />
-          </div>
+          ))}
+        </div>
 
-          {/* Right Column (Desktop) or Bottom Controls (Mobile): Dice Widget & Emoji Reactions */}
-          <div className="lg:col-span-3 order-3 flex flex-col gap-3">
-            <DiceWidget
-              currentValue={gameState.currentDiceValue}
-              isMyTurn={isMyTurn}
-              canRoll={canRoll}
-              playerColor={currentPlayer?.color}
-              onRoll={handleRollDice}
-              disabled={gameState.status !== 'ACTIVE'}
-            />
+        {/* Center: Scalable Ludo Board (Constrained dynamically to fit viewport) */}
+        <div className="flex-1 min-h-0 w-full flex items-center justify-center py-0.5 shrink-0">
+          <LudoBoard
+            gameState={gameState}
+            myColor={currentPlayer?.color}
+            onTokenClick={handleTokenSelect}
+            disabled={!isMyTurn || !gameState.diceRolledThisTurn || gameState.status !== 'ACTIVE'}
+          />
+        </div>
 
-            {/* Quick Helper / Current Turn Cue */}
-            <div className="p-3.5 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-800 text-center shadow-lg">
-              <span className="text-xs font-bold text-amber-300 block mb-1">
-                {isMyTurn
-                  ? gameState.diceRolledThisTurn
-                    ? '👉 Tap your glowing token to advance!'
-                    : '🎲 Tap the 3D dice to roll!'
-                  : `Waiting for ${gameState.players[gameState.currentTurnColor]?.name || gameState.currentTurnColor}...`}
-              </span>
-              <span className="text-[11px] text-slate-400">
-                Roll a 6 to release a token from the yard. Safe squares with stars protect your tokens!
-              </span>
-            </div>
-          </div>
+        {/* Bottom Controls Dock: Dice Widget & Emoji Reactions Palette */}
+        <div className="w-full shrink-0 flex flex-col items-center gap-1 pb-1 mt-0.5">
+          <DiceWidget
+            currentValue={gameState.currentDiceValue}
+            isMyTurn={isMyTurn}
+            canRoll={canRoll}
+            playerColor={currentPlayer?.color}
+            onRoll={handleRollDice}
+            disabled={gameState.status !== 'ACTIVE'}
+          />
+
+          <EmojiReactions onSendEmoji={sendEmoji} recentEmojis={emojiEvents} />
         </div>
       </div>
 

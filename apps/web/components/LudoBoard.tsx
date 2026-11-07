@@ -187,10 +187,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   }, [gameState.players, myColor, legalTokenIds]);
 
   return (
-    <div className="relative w-full max-w-[540px] aspect-square rounded-[36px] shadow-2xl p-2 sm:p-3 bg-gradient-to-br from-amber-700 via-amber-900 to-yellow-950 border-4 border-amber-500/80 select-none">
+    <div className="relative aspect-square w-auto h-auto max-h-[min(48dvh,430px)] max-w-[min(94vw,48dvh,430px)] rounded-[26px] sm:rounded-[36px] shadow-2xl p-1.5 sm:p-2.5 bg-gradient-to-br from-amber-700 via-amber-900 to-yellow-950 border-2 sm:border-4 border-amber-500/80 select-none shrink-0 flex items-center justify-center">
       <svg
         viewBox="0 0 1500 1500"
-        className="w-full h-full rounded-[28px] overflow-hidden"
+        className="w-full h-full rounded-[20px] sm:rounded-[28px] overflow-hidden"
         style={{ touchAction: 'manipulation' }}
       >
         <defs>

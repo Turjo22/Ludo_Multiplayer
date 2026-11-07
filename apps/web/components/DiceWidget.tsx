@@ -12,13 +12,6 @@ interface DiceWidgetProps {
   disabled?: boolean;
 }
 
-const COLOR_CLASSES: Record<PlayerColor, string> = {
-  RED: 'bg-red-500 hover:bg-red-600 shadow-red-500/50',
-  GREEN: 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/50',
-  YELLOW: 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/50',
-  BLUE: 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/50',
-};
-
 // SVG Pip Coordinates for 1..6 on a 100x100 square
 const PIP_CONFIGS: Record<number, [number, number][]> = {
   1: [[50, 50]],
@@ -51,7 +44,6 @@ export const DiceWidget: React.FC<DiceWidgetProps> = ({
 
     setIsRolling(true);
 
-    // Roll cycle animation: rapid changes for 400ms
     const interval = setInterval(() => {
       setDisplayValue(Math.floor(Math.random() * 6) + 1);
     }, 60);
@@ -64,23 +56,23 @@ export const DiceWidget: React.FC<DiceWidgetProps> = ({
   };
 
   const pips = PIP_CONFIGS[displayValue] || PIP_CONFIGS[6];
-  const activeColorBtn = COLOR_CLASSES[playerColor] || COLOR_CLASSES.RED;
 
   return (
-    <div className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800 shadow-lg select-none">
-      {/* 3D Die Container */}
+    <div className="w-full max-w-sm mx-auto flex items-center justify-between gap-3 px-3 py-1.5 sm:py-2 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-amber-500/30 shadow-xl select-none">
+      {/* 3D Interactive Die */}
       <div
         onClick={handleRollClick}
-        className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-white via-slate-100 to-slate-300 p-2 shadow-2xl transition-all duration-300 transform ${
+        className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-white via-slate-100 to-slate-200 p-1.5 shadow-xl transition-all duration-300 shrink-0 ${
           canRoll && !disabled
-            ? 'cursor-pointer hover:scale-105 ring-4 ring-amber-400 ring-offset-2 ring-offset-slate-900 animate-pulse-fast'
-            : 'opacity-85'
+            ? 'cursor-pointer hover:scale-105 ring-4 ring-amber-400 ring-offset-2 ring-offset-slate-900 animate-pulse'
+            : 'opacity-90'
         } ${isRolling ? 'rotate-180 scale-95 transition-transform duration-300' : ''}`}
         style={{
           boxShadow: canRoll
-            ? '0 0 25px rgba(251, 191, 36, 0.6), inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -3px 6px rgba(0,0,0,0.2)'
-            : 'inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -3px 6px rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.4)',
+            ? '0 0 20px rgba(251, 191, 36, 0.7), inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.2)'
+            : 'inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.2), 0 4px 10px rgba(0,0,0,0.4)',
         }}
+        title={canRoll ? 'Tap to roll dice' : `Last roll: ${displayValue}`}
       >
         <svg viewBox="0 0 100 100" className="w-full h-full">
           {pips.map(([cx, cy], i) => (
@@ -88,31 +80,35 @@ export const DiceWidget: React.FC<DiceWidgetProps> = ({
               key={i}
               cx={cx}
               cy={cy}
-              r={10}
+              r={11}
               fill="#0f172a"
               style={{
-                filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.5))',
+                filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.6))',
               }}
             />
           ))}
         </svg>
       </div>
 
-      {/* Action Button & Instructions */}
-      <div className="flex flex-col items-center gap-1">
+      {/* Action / Turn Status Prompt */}
+      <div className="flex-1 flex justify-end">
         {canRoll ? (
           <button
             onClick={handleRollClick}
             disabled={disabled || isRolling}
-            className={`px-5 py-2 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95 ${activeColorBtn}`}
+            className="px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/30 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            {isRolling ? 'Rolling...' : 'Roll Dice'}
+            <span>🎲</span>
+            <span>{isRolling ? 'Rolling...' : 'ROLL DICE'}</span>
           </button>
         ) : (
-          <div className="text-xs sm:text-sm font-medium text-slate-400 text-center min-h-[32px] flex items-center">
-            {isMyTurn
-              ? 'Select an active token to move'
-              : 'Waiting for opponent...'}
+          <div className="text-right">
+            <span className="text-xs font-bold text-amber-300 block">
+              {isMyTurn ? '👉 Tap glowing token' : '⏳ Opponent Turn'}
+            </span>
+            <span className="text-[10px] text-slate-400">
+              {isMyTurn ? 'Advance your piece' : 'Waiting for roll...'}
+            </span>
           </div>
         )}
       </div>
