@@ -11,9 +11,18 @@ import type {
   GameMode,
   TokenId,
   DiceRollResult,
+  PlayerColor,
 } from '@ludo/shared-types';
 
 export type SocketStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
+
+export interface EmojiEvent {
+  id: string;
+  emoji: string;
+  color: PlayerColor;
+  playerName: string;
+  timestamp: number;
+}
 
 export function useLudoSocket() {
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
@@ -24,6 +33,7 @@ export function useLudoSocket() {
   const [latencyMs, setLatencyMs] = useState<number>(0);
   const [lastDiceResult, setLastDiceResult] = useState<DiceRollResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [emojiEvents, setEmojiEvents] = useState<EmojiEvent[]>([]);
 
   const getSavedCredentials = useCallback((): {
     sessionId: string;
@@ -124,6 +134,10 @@ export function useLudoSocket() {
 
     socket.on('error:notification', (err) => {
       setErrorMessage(err.message);
+    });
+
+    socket.on('player:emoji', (payload) => {
+      setEmojiEvents((prev) => [...prev.slice(-15), payload]);
     });
 
     return () => {
@@ -274,14 +288,22 @@ export function useLudoSocket() {
     });
   }, []);
 
+  const sendEmoji = useCallback((emoji: string) => {
+    const socket = socketRef.current;
+    if (!socket) return;
+    socket.emit('player:emoji', { emoji });
+  }, []);
+
   const leaveGame = useCallback(() => {
     clearSavedCredentials();
     setGameState(null);
     setCurrentPlayer(null);
     setCredentials(null);
+    setEmojiEvents([]);
   }, [clearSavedCredentials]);
 
   return {
+    socket: socketRef.current,
     socketStatus: status,
     gameState,
     currentPlayer,
@@ -289,6 +311,8 @@ export function useLudoSocket() {
     latencyMs,
     lastDiceResult,
     errorMessage,
+    emojiEvents,
+    sendEmoji,
     createGame,
     joinGame,
     reconnectGame,

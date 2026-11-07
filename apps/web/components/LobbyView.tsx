@@ -183,9 +183,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       {/* Cancel / Leave Button */}
       <button
         onClick={onLeave}
-        className="text-xs text-slate-400 hover:text-rose-400 transition-colors py-1"
+        className="px-5 py-2.5 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-700/70 text-rose-300 font-bold text-xs sm:text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md shadow-rose-950/40"
       >
-        Leave Lobby
+        <span>🚪</span>
+        <span>Leave Lobby</span>
       </button>
     </div>
   );

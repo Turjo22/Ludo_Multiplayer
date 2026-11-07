@@ -5,6 +5,7 @@ import type {
   CreateSessionSuccessPayload,
   JoinSessionSuccessPayload,
   ReconnectSessionSuccessPayload,
+  PlayerColor,
 } from '@ludo/shared-types';
 import {
   CreateSessionSchema,
@@ -26,6 +27,7 @@ export function setupSocketHandlers(
   presenceTracker: PresenceTracker
 ): void {
   const rateLimiter = new RateLimiter(50, 10); // 50 actions per 10s per socket
+  const voiceRooms = new Map<string, Map<string, { socketId: string; playerId: string; color: PlayerColor; isMuted: boolean }>>();
 
   io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>) => {
     const socketId = socket.id;
@@ -272,8 +274,111 @@ export function setupSocketHandlers(
       }
     });
 
+    // Voice chat: join voice room
+    socket.on('voice:join', async () => {
+      const info = presenceTracker.getPlayerForSocket(socketId);
+      if (!info) return;
+
+      const session = await sessionManager.getSession(info.sessionId);
+      if (!session) return;
+
+      const player = Object.values(session.players).find((p) => p?.id === info.playerId);
+      if (!player) return;
+
+      let roomUsers = voiceRooms.get(info.sessionId);
+      if (!roomUsers) {
+        roomUsers = new Map();
+        voiceRooms.set(info.sessionId, roomUsers);
+      }
+
+      const userInfo = {
+        socketId,
+        playerId: player.id,
+        color: player.color,
+        isMuted: false,
+      };
+
+      // Send currently active peers to this new peer
+      const existing = Array.from(roomUsers.values()).filter((u) => u.socketId !== socketId);
+      socket.emit('voice:active-users', { users: existing });
+
+      roomUsers.set(socketId, userInfo);
+
+      // Broadcast to other voice peers that user joined
+      socket.to(info.sessionId).emit('voice:user-joined', userInfo);
+    });
+
+    // Voice chat: leave voice room
+    socket.on('voice:leave', () => {
+      const info = presenceTracker.getPlayerForSocket(socketId);
+      if (!info) return;
+
+      const roomUsers = voiceRooms.get(info.sessionId);
+      if (roomUsers) {
+        roomUsers.delete(socketId);
+        if (roomUsers.size === 0) voiceRooms.delete(info.sessionId);
+      }
+
+      socket.to(info.sessionId).emit('voice:user-left', { socketId });
+    });
+
+    // Voice chat: WebRTC P2P signaling relay
+    socket.on('voice:signal', (payload) => {
+      if (!payload.targetSocketId || !payload.signal) return;
+      io.to(payload.targetSocketId).emit('voice:signal', {
+        senderSocketId: socketId,
+        signal: payload.signal,
+      });
+    });
+
+    // Voice chat: mute status
+    socket.on('voice:mute', (payload) => {
+      const info = presenceTracker.getPlayerForSocket(socketId);
+      if (!info) return;
+
+      const roomUsers = voiceRooms.get(info.sessionId);
+      if (roomUsers) {
+        const u = roomUsers.get(socketId);
+        if (u) u.isMuted = payload.isMuted;
+      }
+
+      io.to(info.sessionId).emit('voice:user-muted', {
+        socketId,
+        isMuted: payload.isMuted,
+      });
+    });
+
+    // Emoji reactions
+    socket.on('player:emoji', async (payload) => {
+      const info = presenceTracker.getPlayerForSocket(socketId);
+      if (!info || !payload.emoji) return;
+
+      const session = await sessionManager.getSession(info.sessionId);
+      if (!session) return;
+
+      const player = Object.values(session.players).find((p) => p?.id === info.playerId);
+      if (!player) return;
+
+      io.to(info.sessionId).emit('player:emoji', {
+        id: `emoji-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        emoji: payload.emoji.slice(0, 4),
+        color: player.color,
+        playerName: player.name,
+        timestamp: Date.now(),
+      });
+    });
+
     // Handle disconnect
     socket.on('disconnect', async () => {
+      const info = presenceTracker.getPlayerForSocket(socketId);
+      if (info) {
+        const roomUsers = voiceRooms.get(info.sessionId);
+        if (roomUsers) {
+          roomUsers.delete(socketId);
+          if (roomUsers.size === 0) voiceRooms.delete(info.sessionId);
+          socket.to(info.sessionId).emit('voice:user-left', { socketId });
+        }
+      }
       await presenceTracker.handleDisconnect(socketId);
     });
   });

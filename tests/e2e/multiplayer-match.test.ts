@@ -57,8 +57,9 @@ describe('E2E: Complete Multiplayer Match & Session Lifecycle', () => {
 
   function connectClient(): Promise<ClientSocket<ServerToClientEvents, ClientToServerEvents>> {
     const socket = ioc(serverUrl, { transports: ['websocket'], forceNew: true });
+    if (socket.connected) return Promise.resolve(socket);
     return new Promise((resolve) => {
-      socket.on('connect', () => resolve(socket));
+      socket.once('connect', () => resolve(socket));
     });
   }
 
@@ -119,13 +120,13 @@ describe('E2E: Complete Multiplayer Match & Session Lifecycle', () => {
     expect(p1.player.color).toBe('RED');
     expect(p1.gameState.status).toBe('WAITING');
 
-    // Player 2 joins -> Green
+    // Player 2 joins -> Blue
     const p2 = await new Promise<JoinSessionSuccessPayload>((resolve) => {
       c2.emit('session:join', { sessionId: p1.sessionId, playerName: 'P2' }, (res) => {
         if (res.success) resolve(res.data);
       });
     });
-    expect(p2.player.color).toBe('GREEN');
+    expect(p2.player.color).toBe('BLUE');
 
     // Player 3 joins -> Yellow
     const p3 = await new Promise<JoinSessionSuccessPayload>((resolve) => {
@@ -135,13 +136,13 @@ describe('E2E: Complete Multiplayer Match & Session Lifecycle', () => {
     });
     expect(p3.player.color).toBe('YELLOW');
 
-    // Player 4 joins -> Blue -> transitions to ACTIVE!
+    // Player 4 joins -> Green -> transitions to ACTIVE!
     const p4 = await new Promise<JoinSessionSuccessPayload>((resolve) => {
       c4.emit('session:join', { sessionId: p1.sessionId, playerName: 'P4' }, (res) => {
         if (res.success) resolve(res.data);
       });
     });
-    expect(p4.player.color).toBe('BLUE');
+    expect(p4.player.color).toBe('GREEN');
     expect(p4.gameState.status).toBe('ACTIVE');
 
     c1.disconnect();

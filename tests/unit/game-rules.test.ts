@@ -40,18 +40,18 @@ describe('Ludo Game Engine - Core Rules', () => {
     expect(getDistanceFromStart('RED', 10)).toBe(10);
     expect(getDistanceFromStart('RED', 51)).toBe(51);
 
-    // Green starts at 13
-    expect(getDistanceFromStart('GREEN', 13)).toBe(0);
-    expect(getDistanceFromStart('GREEN', 14)).toBe(1);
-    expect(getDistanceFromStart('GREEN', 12)).toBe(51);
+    // Blue starts at 13
+    expect(getDistanceFromStart('BLUE', 13)).toBe(0);
+    expect(getDistanceFromStart('BLUE', 14)).toBe(1);
+    expect(getDistanceFromStart('BLUE', 12)).toBe(51);
 
     // Yellow starts at 26
     expect(getDistanceFromStart('YELLOW', 26)).toBe(0);
     expect(getDistanceFromStart('YELLOW', 25)).toBe(51);
 
-    // Blue starts at 39
-    expect(getDistanceFromStart('BLUE', 39)).toBe(0);
-    expect(getDistanceFromStart('BLUE', 38)).toBe(51);
+    // Green starts at 39
+    expect(getDistanceFromStart('GREEN', 39)).toBe(0);
+    expect(getDistanceFromStart('GREEN', 38)).toBe(51);
   });
 
   it('identifies classic safe squares correctly', () => {
@@ -279,10 +279,10 @@ describe('Ludo Game Engine - Core Rules', () => {
     expect(getNextTurnColor('RED', ['RED', 'YELLOW'], COLOR_ORDER_2P)).toBe('YELLOW');
     expect(getNextTurnColor('YELLOW', ['RED', 'YELLOW'], COLOR_ORDER_2P)).toBe('RED');
 
-    // 4P mode: RED -> GREEN -> YELLOW -> BLUE -> RED
-    expect(getNextTurnColor('RED', ['RED', 'GREEN', 'YELLOW', 'BLUE'], COLOR_ORDER_4P)).toBe('GREEN');
-    expect(getNextTurnColor('GREEN', ['RED', 'GREEN', 'YELLOW', 'BLUE'], COLOR_ORDER_4P)).toBe('YELLOW');
-    expect(getNextTurnColor('YELLOW', ['RED', 'GREEN', 'YELLOW', 'BLUE'], COLOR_ORDER_4P)).toBe('BLUE');
-    expect(getNextTurnColor('BLUE', ['RED', 'GREEN', 'YELLOW', 'BLUE'], COLOR_ORDER_4P)).toBe('RED');
+    // 4P mode: RED -> BLUE -> YELLOW -> GREEN -> RED
+    expect(getNextTurnColor('RED', ['RED', 'BLUE', 'YELLOW', 'GREEN'], COLOR_ORDER_4P)).toBe('BLUE');
+    expect(getNextTurnColor('BLUE', ['RED', 'BLUE', 'YELLOW', 'GREEN'], COLOR_ORDER_4P)).toBe('YELLOW');
+    expect(getNextTurnColor('YELLOW', ['RED', 'BLUE', 'YELLOW', 'GREEN'], COLOR_ORDER_4P)).toBe('GREEN');
+    expect(getNextTurnColor('GREEN', ['RED', 'BLUE', 'YELLOW', 'GREEN'], COLOR_ORDER_4P)).toBe('RED');
   });
 });

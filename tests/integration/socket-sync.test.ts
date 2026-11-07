@@ -52,6 +52,12 @@ describe('Integration: Real-Time Socket.IO Multiplayer Synchronization', () => {
     });
   });
 
+  function waitForConnect(socket: ClientSocket<any, any>): Promise<void> {
+    socket.on('connect_error', (err) => console.error('[Socket Error]:', err));
+    if (socket.connected) return Promise.resolve();
+    return new Promise<void>((resolve) => socket.once('connect', () => resolve()));
+  }
+
   it('synchronizes real-time session creation, joining, dice rolls, and moves across multiple sockets', async () => {
     const clientA: ClientSocket<ServerToClientEvents, ClientToServerEvents> = ioc(serverUrl, {
       transports: ['websocket'],
@@ -62,10 +68,7 @@ describe('Integration: Real-Time Socket.IO Multiplayer Synchronization', () => {
       forceNew: true,
     });
 
-    await Promise.all([
-      new Promise<void>((resolve) => clientA.on('connect', () => resolve())),
-      new Promise<void>((resolve) => clientB.on('connect', () => resolve())),
-    ]);
+    await Promise.all([waitForConnect(clientA), waitForConnect(clientB)]);
 
     // Client A creates a 2P game
     const createResult = await new Promise<CreateSessionSuccessPayload>((resolve, reject) => {

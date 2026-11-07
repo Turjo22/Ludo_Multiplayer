@@ -6,7 +6,6 @@ import type {
   PlayerColor,
   TokenState,
   TokenId,
-  LegalMove,
 } from '@ludo/shared-types';
 
 interface LudoBoardProps {
@@ -24,7 +23,7 @@ const TRACK_COORDS: [number, number][] = [
   [6, 5], [6, 4], [6, 3], [6, 2], [6, 1], [6, 0],
   // Top crossover (11..12)
   [7, 0], [8, 0],
-  // Down arm / Green start (13..17)
+  // Down arm / Blue start (13..17)
   [8, 1], [8, 2], [8, 3], [8, 4], [8, 5],
   // Right arm (18..23)
   [9, 6], [10, 6], [11, 6], [12, 6], [13, 6], [14, 6],
@@ -36,7 +35,7 @@ const TRACK_COORDS: [number, number][] = [
   [8, 9], [8, 10], [8, 11], [8, 12], [8, 13], [8, 14],
   // Bottom crossover (37..38)
   [7, 14], [6, 14],
-  // Up arm / Blue start (39..43)
+  // Up arm / Green start (39..43)
   [6, 13], [6, 12], [6, 11], [6, 10], [6, 9],
   // Left arm (44..49)
   [5, 8], [4, 8], [3, 8], [2, 8], [1, 8], [0, 8],
@@ -47,27 +46,49 @@ const TRACK_COORDS: [number, number][] = [
 // Home runways: 5 steps each leading into center
 const HOME_PATH_COORDS: Record<PlayerColor, [number, number][]> = {
   RED: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7]],
-  GREEN: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5]],
+  BLUE: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5]],
   YELLOW: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7]],
-  BLUE: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9]],
+  GREEN: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9]],
 };
 
-// Yard pocket coordinates
+// Yard pocket coordinates: Red top-left, Blue top-right, Yellow bottom-right, Green bottom-left
 const YARD_POCKETS: Record<PlayerColor, [number, number][]> = {
-  RED: [[1.8, 1.8], [3.8, 1.8], [1.8, 3.8], [3.8, 3.8]],
-  GREEN: [[10.8, 1.8], [12.8, 1.8], [10.8, 3.8], [12.8, 3.8]],
-  YELLOW: [[10.8, 10.8], [12.8, 10.8], [10.8, 12.8], [12.8, 12.8]],
-  BLUE: [[1.8, 10.8], [3.8, 10.8], [1.8, 12.8], [3.8, 12.8]],
+  RED: [[1.9, 1.9], [3.9, 1.9], [1.9, 3.9], [3.9, 3.9]],
+  BLUE: [[10.9, 1.9], [12.9, 1.9], [10.9, 3.9], [12.9, 3.9]],
+  YELLOW: [[10.9, 10.9], [12.9, 10.9], [10.9, 12.9], [12.9, 12.9]],
+  GREEN: [[1.9, 10.9], [3.9, 10.9], [1.9, 12.9], [3.9, 12.9]],
 };
 
-// Safe squares set
-const SAFE_INDICES = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
+// Color styling constants
+const COLOR_CONFIG: Record<
+  PlayerColor,
+  { main: string; dark: string; light: string; border: string; glow: string }
+> = {
+  RED: { main: '#e11d48', dark: '#9f1239', light: '#fecdd3', border: '#be123c', glow: '#fb7185' },
+  BLUE: { main: '#0284c7', dark: '#075985', light: '#bae6fd', border: '#0369a1', glow: '#38bdf8' },
+  YELLOW: { main: '#eab308', dark: '#a16207', light: '#fef08a', border: '#ca8a04', glow: '#facc15' },
+  GREEN: { main: '#16a34a', dark: '#14532d', light: '#bbf7d0', border: '#15803d', glow: '#4ade80' },
+};
 
-const COLOR_FILLS: Record<PlayerColor, { main: string; light: string; border: string }> = {
-  RED: { main: '#ef4444', light: '#fca5a5', border: '#b91c1c' },
-  GREEN: { main: '#10b981', light: '#86efac', border: '#047857' },
-  YELLOW: { main: '#f59e0b', light: '#fde68a', border: '#b45309' },
-  BLUE: { main: '#3b82f6', light: '#93c5fd', border: '#1d4ed8' },
+// Star badge configuration: matching user's board image
+// Red start (0) & safe (47); Blue start (13) & safe (8); Yellow start (26) & safe (21); Green start (39) & safe (34)
+const STAR_BADGES: Record<number, PlayerColor> = {
+  0: 'RED',
+  47: 'RED',
+  13: 'BLUE',
+  8: 'BLUE',
+  26: 'YELLOW',
+  21: 'YELLOW',
+  39: 'GREEN',
+  34: 'GREEN',
+};
+
+// Colored runway entry cells (corner track turns into runway)
+const RUNWAY_ENTRIES: Record<number, PlayerColor> = {
+  51: 'RED',    // [0, 6]
+  12: 'BLUE',   // [8, 0]
+  25: 'YELLOW', // [14, 8]
+  38: 'GREEN',  // [6, 14]
 };
 
 export const LudoBoard: React.FC<LudoBoardProps> = ({
@@ -76,9 +97,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   onTokenClick,
   disabled = false,
 }) => {
-  const cellSize = 100 / 15; // percentage per cell (6.666%)
-
-  // Check which tokens are legal for the current player
+  // Determine which tokens can be legally moved by the user right now
   const legalTokenIds = useMemo(() => {
     if (!myColor || gameState.currentTurnColor !== myColor || disabled) {
       return new Set<TokenId>();
@@ -86,7 +105,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     return new Set(gameState.legalMoves.map((m) => m.tokenId));
   }, [gameState.legalMoves, gameState.currentTurnColor, myColor, disabled]);
 
-  // Collect all tokens with rendered board coordinates
+  // Compute exact coordinates for all tokens with stacking offsets
   const renderedTokens = useMemo(() => {
     const list: Array<{
       token: TokenState;
@@ -97,10 +116,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
       stackTotal: number;
     }> = [];
 
-    // Grouping map for stacking multiple tokens on the same square
     const cellGroups = new Map<string, TokenState[]>();
 
-    for (const color of ['RED', 'GREEN', 'YELLOW', 'BLUE'] as PlayerColor[]) {
+    for (const color of ['RED', 'BLUE', 'YELLOW', 'GREEN'] as PlayerColor[]) {
       const player = gameState.players[color];
       if (!player) continue;
 
@@ -122,7 +140,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
       }
     }
 
-    cellGroups.forEach((tokens, key) => {
+    cellGroups.forEach((tokens) => {
       const total = tokens.length;
       tokens.forEach((token, index) => {
         let col = 0;
@@ -141,13 +159,12 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           col = coord[0] + 0.5;
           row = coord[1] + 0.5;
         } else if (token.positionType === 'HOME_FINAL') {
-          // Center home area offset by color
           const center = 7.5;
           const offsets: Record<PlayerColor, [number, number]> = {
-            RED: [-0.6, 0],
-            GREEN: [0, -0.6],
-            YELLOW: [0.6, 0],
-            BLUE: [0, 0.6],
+            RED: [-0.65, 0],
+            BLUE: [0, -0.65],
+            YELLOW: [0.65, 0],
+            GREEN: [0, 0.65],
           };
           col = center + offsets[token.color][0];
           row = center + offsets[token.color][1];
@@ -170,186 +187,242 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   }, [gameState.players, myColor, legalTokenIds]);
 
   return (
-    <div className="relative w-full max-w-[560px] aspect-square rounded-2xl shadow-2xl overflow-hidden p-2 bg-slate-900 border-2 border-slate-800 select-none">
+    <div className="relative w-full max-w-[540px] aspect-square rounded-[36px] shadow-2xl p-2 sm:p-3 bg-gradient-to-br from-amber-700 via-amber-900 to-yellow-950 border-4 border-amber-500/80 select-none">
       <svg
         viewBox="0 0 1500 1500"
-        className="w-full h-full rounded-xl bg-slate-950"
+        className="w-full h-full rounded-[28px] overflow-hidden"
         style={{ touchAction: 'manipulation' }}
       >
         <defs>
-          {/* Subtle drop shadow filters for tokens */}
-          <filter id="tokenGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="0" stdDeviation="15" floodColor="#fbbf24" floodOpacity="0.8" />
+          {/* Metallic Gold Outer Bevel Gradient */}
+          <linearGradient id="goldFrame" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fef08a" />
+            <stop offset="25%" stopColor="#eab308" />
+            <stop offset="50%" stopColor="#854d0e" />
+            <stop offset="75%" stopColor="#facc15" />
+            <stop offset="100%" stopColor="#713f12" />
+          </linearGradient>
+
+          {/* Gentle floating halo for selectable active token */}
+          <filter id="tokenFloatingHalo" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#f59e0b" floodOpacity="0.95" />
+            <feDropShadow dx="0" dy="0" stdDeviation="24" floodColor="#fbbf24" floodOpacity="0.6" />
           </filter>
-          <filter id="tokenShadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000000" floodOpacity="0.4" />
+
+          {/* Token 3D Shadow */}
+          <filter id="tokenDepthShadow" x="-25%" y="-25%" width="150%" height="150%">
+            <feDropShadow dx="0" dy="5" stdDeviation="4" floodColor="#000000" floodOpacity="0.5" />
           </filter>
         </defs>
 
-        {/* 1. Base grid lines and track cells */}
+        {/* 1. Base pure white board background */}
+        <rect x="0" y="0" width="1500" height="1500" fill="#ffffff" />
+
+        {/* 2. Main Track 52 squares (Crisp pure white, clean dark borders) */}
         {TRACK_COORDS.map(([c, r], index) => {
           const x = c * 100;
           const y = r * 100;
-          const isSafe = SAFE_INDICES.has(index);
 
-          let cellFill = '#1e293b'; // Default track square
-          if (index === 0) cellFill = '#ef4444'; // Red start
-          else if (index === 13) cellFill = '#10b981'; // Green start
-          else if (index === 26) cellFill = '#f59e0b'; // Yellow start
-          else if (index === 39) cellFill = '#3b82f6'; // Blue start
+          // Check if this cell is a colored runway turn entry
+          const runwayColor = RUNWAY_ENTRIES[index];
+          const starColor = STAR_BADGES[index];
+
+          let cellFill = '#ffffff';
+          if (runwayColor) {
+            cellFill = COLOR_CONFIG[runwayColor].main;
+          }
 
           return (
-            <g key={`track-${index}`}>
+            <g key={`cell-${index}`}>
               <rect
-                x={x + 2}
-                y={y + 2}
-                width={96}
-                height={96}
-                rx={6}
+                x={x + 1}
+                y={y + 1}
+                width={98}
+                height={98}
                 fill={cellFill}
-                stroke="#334155"
+                stroke="#1e293b"
                 strokeWidth={2}
               />
-              {isSafe && (
-                <path
-                  d={`M ${x + 50} ${y + 25} L ${x + 58} ${y + 42} L ${x + 75} ${y + 43} L ${x + 62} ${y + 55} L ${x + 67} ${y + 72} L ${x + 50} ${y + 60} L ${x + 33} ${y + 72} L ${x + 38} ${y + 55} L ${x + 25} ${y + 43} L ${x + 42} ${y + 42} Z`}
-                  fill="#fbbf24"
-                  stroke="#d97706"
-                  strokeWidth={2}
-                />
+
+              {/* Star Badge for Start / Safe Squares */}
+              {starColor && (
+                <g>
+                  {/* Colored circular badge */}
+                  <circle
+                    cx={x + 50}
+                    cy={y + 50}
+                    r={32}
+                    fill={COLOR_CONFIG[starColor].main}
+                    stroke="#ffffff"
+                    strokeWidth={3}
+                  />
+                  {/* Crisp white star inside */}
+                  <path
+                    d={`M ${x + 50} ${y + 28} L ${x + 56} ${y + 43} L ${x + 72} ${y + 44} L ${x + 59} ${y + 54} L ${x + 64} ${y + 70} L ${x + 50} ${y + 59} L ${x + 36} ${y + 70} L ${x + 41} ${y + 54} L ${x + 28} ${y + 44} L ${x + 44} ${y + 43} Z`}
+                    fill="#ffffff"
+                  />
+                </g>
               )}
             </g>
           );
         })}
 
-        {/* 2. Home Runways (5 cells each) */}
-        {(['RED', 'GREEN', 'YELLOW', 'BLUE'] as PlayerColor[]).map((color) =>
+        {/* 3. Home Runways (5 steps each leading into center) */}
+        {(['RED', 'BLUE', 'YELLOW', 'GREEN'] as PlayerColor[]).map((color) =>
           HOME_PATH_COORDS[color].map(([c, r], i) => (
             <rect
               key={`home-${color}-${i}`}
-              x={c * 100 + 2}
-              y={r * 100 + 2}
-              width={96}
-              height={96}
-              rx={6}
-              fill={COLOR_FILLS[color].main}
-              stroke="#0f172a"
+              x={c * 100 + 1}
+              y={r * 100 + 1}
+              width={98}
+              height={98}
+              fill={COLOR_CONFIG[color].main}
+              stroke="#1e293b"
               strokeWidth={2}
             />
           ))
         )}
 
-        {/* 3. Yards (Four large corner boxes) */}
-        {/* Red Yard: Top Left (0..5, 0..5) */}
-        <g id="red-yard">
-          <rect x={10} y={10} width={580} height={580} rx={16} fill="#ef4444" stroke="#991b1b" strokeWidth={4} />
-          <rect x={80} y={80} width={440} height={440} rx={24} fill="#ffffff" />
+        {/* 4. Four Corner Yards: Red top-left, Blue top-right, Yellow bottom-right, Green bottom-left */}
+        {/* RED Yard: Top Left (0..6, 0..6) */}
+        <g id="yard-red">
+          <rect x={0} y={0} width={600} height={600} fill={COLOR_CONFIG.RED.main} stroke="#1e293b" strokeWidth={3} />
+          {/* Inner rounded white box */}
+          <rect x={75} y={75} width={450} height={450} rx={48} fill="#ffffff" stroke="#1e293b" strokeWidth={4} />
+          {/* 4 large circular red pockets */}
           {YARD_POCKETS.RED.map(([cx, cy], i) => (
-            <circle
-              key={`rp-${i}`}
-              cx={cx * 100}
-              cy={cy * 100}
-              r={40}
-              fill="#fee2e2"
-              stroke="#ef4444"
-              strokeWidth={6}
-            />
+            <g key={`rp-${i}`}>
+              <circle
+                cx={cx * 100}
+                cy={cy * 100}
+                r={44}
+                fill={COLOR_CONFIG.RED.main}
+                stroke="#1e293b"
+                strokeWidth={4}
+              />
+            </g>
           ))}
         </g>
 
-        {/* Green Yard: Top Right (9..14, 0..5) */}
-        <g id="green-yard">
-          <rect x={910} y={10} width={580} height={580} rx={16} fill="#10b981" stroke="#065f46" strokeWidth={4} />
-          <rect x={980} y={80} width={440} height={440} rx={24} fill="#ffffff" />
-          {YARD_POCKETS.GREEN.map(([cx, cy], i) => (
-            <circle
-              key={`gp-${i}`}
-              cx={cx * 100}
-              cy={cy * 100}
-              r={40}
-              fill="#d1fae5"
-              stroke="#10b981"
-              strokeWidth={6}
-            />
-          ))}
-        </g>
-
-        {/* Yellow Yard: Bottom Right (9..14, 9..14) */}
-        <g id="yellow-yard">
-          <rect x={910} y={910} width={580} height={580} rx={16} fill="#f59e0b" stroke="#92400e" strokeWidth={4} />
-          <rect x={980} y={980} width={440} height={440} rx={24} fill="#ffffff" />
-          {YARD_POCKETS.YELLOW.map(([cx, cy], i) => (
-            <circle
-              key={`yp-${i}`}
-              cx={cx * 100}
-              cy={cy * 100}
-              r={40}
-              fill="#fef3c7"
-              stroke="#f59e0b"
-              strokeWidth={6}
-            />
-          ))}
-        </g>
-
-        {/* Blue Yard: Bottom Left (0..5, 9..14) */}
-        <g id="blue-yard">
-          <rect x={10} y={910} width={580} height={580} rx={16} fill="#3b82f6" stroke="#1e40af" strokeWidth={4} />
-          <rect x={80} y={980} width={440} height={440} rx={24} fill="#ffffff" />
+        {/* BLUE Yard: Top Right (9..15, 0..6) */}
+        <g id="yard-blue">
+          <rect x={900} y={0} width={600} height={600} fill={COLOR_CONFIG.BLUE.main} stroke="#1e293b" strokeWidth={3} />
+          {/* Inner rounded white box */}
+          <rect x={975} y={75} width={450} height={450} rx={48} fill="#ffffff" stroke="#1e293b" strokeWidth={4} />
+          {/* 4 large circular blue pockets */}
           {YARD_POCKETS.BLUE.map(([cx, cy], i) => (
-            <circle
-              key={`bp-${i}`}
-              cx={cx * 100}
-              cy={cy * 100}
-              r={40}
-              fill="#dbeafe"
-              stroke="#3b82f6"
-              strokeWidth={6}
-            />
+            <g key={`bp-${i}`}>
+              <circle
+                cx={cx * 100}
+                cy={cy * 100}
+                r={44}
+                fill={COLOR_CONFIG.BLUE.main}
+                stroke="#1e293b"
+                strokeWidth={4}
+              />
+            </g>
           ))}
         </g>
 
-        {/* 4. Center Home Triangle Area (6..8, 6..8) */}
-        <g id="center-home">
-          <rect x={600} y={600} width={300} height={300} fill="#0f172a" />
-          {/* Red triangle (left) */}
-          <polygon points="600,600 750,750 600,900" fill="#ef4444" stroke="#0f172a" strokeWidth={2} />
-          {/* Green triangle (top) */}
-          <polygon points="600,600 900,600 750,750" fill="#10b981" stroke="#0f172a" strokeWidth={2} />
-          {/* Yellow triangle (right) */}
-          <polygon points="900,600 900,900 750,750" fill="#f59e0b" stroke="#0f172a" strokeWidth={2} />
-          {/* Blue triangle (bottom) */}
-          <polygon points="600,900 750,750 900,900" fill="#3b82f6" stroke="#0f172a" strokeWidth={2} />
-
-          {/* Center decorative gold emblem */}
-          <circle cx={750} cy={750} r={32} fill="#0f172a" stroke="#fbbf24" strokeWidth={3} />
-          <text
-            x={750}
-            y={756}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fill="#fbbf24"
-            fontSize="20"
-            fontWeight="bold"
-          >
-            ★
-          </text>
+        {/* YELLOW Yard: Bottom Right (9..15, 9..15) */}
+        <g id="yard-yellow">
+          <rect x={900} y={900} width={600} height={600} fill={COLOR_CONFIG.YELLOW.main} stroke="#1e293b" strokeWidth={3} />
+          {/* Inner rounded white box */}
+          <rect x={975} y={975} width={450} height={450} rx={48} fill="#ffffff" stroke="#1e293b" strokeWidth={4} />
+          {/* 4 large circular yellow pockets */}
+          {YARD_POCKETS.YELLOW.map(([cx, cy], i) => (
+            <g key={`yp-${i}`}>
+              <circle
+                cx={cx * 100}
+                cy={cy * 100}
+                r={44}
+                fill={COLOR_CONFIG.YELLOW.main}
+                stroke="#1e293b"
+                strokeWidth={4}
+              />
+            </g>
+          ))}
         </g>
 
-        {/* 5. Rendered Interactive Tokens */}
+        {/* GREEN Yard: Bottom Left (0..6, 9..15) */}
+        <g id="yard-green">
+          <rect x={0} y={900} width={600} height={600} fill={COLOR_CONFIG.GREEN.main} stroke="#1e293b" strokeWidth={3} />
+          {/* Inner rounded white box */}
+          <rect x={75} y={975} width={450} height={450} rx={48} fill="#ffffff" stroke="#1e293b" strokeWidth={4} />
+          {/* 4 large circular green pockets */}
+          {YARD_POCKETS.GREEN.map(([cx, cy], i) => (
+            <g key={`gp-${i}`}>
+              <circle
+                cx={cx * 100}
+                cy={cy * 100}
+                r={44}
+                fill={COLOR_CONFIG.GREEN.main}
+                stroke="#1e293b"
+                strokeWidth={4}
+              />
+            </g>
+          ))}
+        </g>
+
+        {/* 5. Center Home Triangular Destination */}
+        <g id="center-home">
+          {/* Red Left Triangle */}
+          <polygon
+            points="600,600 750,750 600,900"
+            fill={COLOR_CONFIG.RED.main}
+            stroke="#1e293b"
+            strokeWidth={3}
+          />
+          {/* Blue Top Triangle */}
+          <polygon
+            points="600,600 900,600 750,750"
+            fill={COLOR_CONFIG.BLUE.main}
+            stroke="#1e293b"
+            strokeWidth={3}
+          />
+          {/* Yellow Right Triangle */}
+          <polygon
+            points="900,600 900,900 750,750"
+            fill={COLOR_CONFIG.YELLOW.main}
+            stroke="#1e293b"
+            strokeWidth={3}
+          />
+          {/* Green Bottom Triangle */}
+          <polygon
+            points="600,900 750,750 900,900"
+            fill={COLOR_CONFIG.GREEN.main}
+            stroke="#1e293b"
+            strokeWidth={3}
+          />
+        </g>
+
+        {/* 6. Outer Beveled Gold Metallic Border */}
+        <rect
+          x="10"
+          y="10"
+          width="1480"
+          height="1480"
+          rx="50"
+          fill="none"
+          stroke="url(#goldFrame)"
+          strokeWidth="20"
+        />
+
+        {/* 7. Rendered Interactive Tokens */}
         {renderedTokens.map(({ token, col, row, isLegal, stackIndex, stackTotal }) => {
-          // Compute subtle micro-offset if multiple tokens share the square
           let offsetX = 0;
           let offsetY = 0;
           if (stackTotal > 1) {
             const angle = (stackIndex / stackTotal) * 2 * Math.PI;
-            const radius = 16;
+            const radius = 18;
             offsetX = Math.cos(angle) * radius;
             offsetY = Math.sin(angle) * radius;
           }
 
+          // Fixed stationary coordinates: never moves on hover/active to allow instant 1-tap selection
           const cx = col * 100 + offsetX;
           const cy = row * 100 + offsetY;
-          const colorStyles = COLOR_FILLS[token.color];
+          const colorStyles = COLOR_CONFIG[token.color];
 
           return (
             <g
@@ -362,47 +435,67 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               }}
               style={{
                 cursor: isLegal ? 'pointer' : 'default',
-                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                transition: 'opacity 0.2s ease',
               }}
             >
-              {/* Highlight halo when token can move */}
+              {/* Floating stationary halo ring when token is legal */}
               {isLegal && (
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r={38}
-                  fill="none"
-                  stroke="#fbbf24"
-                  strokeWidth={6}
-                  strokeDasharray="6 4"
-                  filter="url(#tokenGlow)"
-                />
+                <>
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={36}
+                    fill="none"
+                    stroke="#fbbf24"
+                    strokeWidth={5}
+                    strokeDasharray="6 3"
+                    filter="url(#tokenFloatingHalo)"
+                  />
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={32}
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    opacity={0.8}
+                  />
+                </>
               )}
 
-              {/* Main token body */}
+              {/* Main Token Base */}
               <circle
                 cx={cx}
                 cy={cy}
                 r={28}
                 fill={colorStyles.main}
-                stroke={isLegal ? '#ffffff' : colorStyles.border}
+                stroke={isLegal ? '#ffffff' : '#1e293b'}
                 strokeWidth={isLegal ? 4 : 3}
-                filter="url(#tokenShadow)"
+                filter="url(#tokenDepthShadow)"
               />
 
-              {/* Inner highlight ring */}
-              <circle cx={cx} cy={cy} r={18} fill={colorStyles.light} opacity={0.6} />
+              {/* Inner Gloss Ring */}
+              <circle
+                cx={cx}
+                cy={cy}
+                r={19}
+                fill={colorStyles.light}
+                opacity={0.55}
+              />
 
-              {/* Token ID label (1..4) */}
+              {/* Token Number Label (1..4) */}
               <text
                 x={cx}
                 y={cy + 1}
                 textAnchor="middle"
                 dominantBaseline="central"
                 fill="#ffffff"
-                fontSize="18"
+                fontSize="19"
                 fontWeight="900"
-                style={{ pointerEvents: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                style={{
+                  pointerEvents: 'none',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+                }}
               >
                 {token.id + 1}
               </text>

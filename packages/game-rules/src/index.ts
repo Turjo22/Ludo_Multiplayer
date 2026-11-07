@@ -17,12 +17,12 @@ export const MAX_CONSECUTIVE_SIXES = 3;
 
 export const START_SQUARES: Record<PlayerColor, number> = {
   RED: 0,
-  GREEN: 13,
+  BLUE: 13,
   YELLOW: 26,
-  BLUE: 39,
+  GREEN: 39,
 };
 
-export const COLOR_ORDER_4P: readonly PlayerColor[] = ['RED', 'GREEN', 'YELLOW', 'BLUE'];
+export const COLOR_ORDER_4P: readonly PlayerColor[] = ['RED', 'BLUE', 'YELLOW', 'GREEN'];
 export const COLOR_ORDER_2P: readonly PlayerColor[] = ['RED', 'YELLOW'];
 
 /**

@@ -53,7 +53,7 @@ describe('Integration: Session Management & Guest Identity', () => {
     expect(createRes.player.color).toBe('RED');
 
     const p2 = await sessionManager.joinSession(createRes.sessionId, 'Player 2');
-    expect(p2.player.color).toBe('GREEN');
+    expect(p2.player.color).toBe('BLUE');
     expect(p2.gameState.status).toBe('WAITING');
 
     const p3 = await sessionManager.joinSession(createRes.sessionId, 'Player 3');
@@ -61,7 +61,7 @@ describe('Integration: Session Management & Guest Identity', () => {
     expect(p3.gameState.status).toBe('WAITING');
 
     const p4 = await sessionManager.joinSession(createRes.sessionId, 'Player 4');
-    expect(p4.player.color).toBe('BLUE');
+    expect(p4.player.color).toBe('GREEN');
     expect(p4.gameState.status).toBe('ACTIVE'); // Starts when 4th player joins
   });
 

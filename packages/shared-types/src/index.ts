@@ -179,6 +179,13 @@ export interface ClientToServerEvents {
     payload: { clientTime: number },
     callback: (response: { clientTime: number; serverTime: number }) => void
   ) => void;
+
+  'voice:join': () => void;
+  'voice:leave': () => void;
+  'voice:signal': (payload: { targetSocketId: string; signal: any }) => void;
+  'voice:mute': (payload: { isMuted: boolean }) => void;
+
+  'player:emoji': (payload: { emoji: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -198,6 +205,14 @@ export interface ServerToClientEvents {
   'token:moved': (payload: MoveResult & { state: GameState }) => void;
   'game:updated': (state: GameState) => void;
   'game:finished': (payload: { winner: PlayerColor; rankings: PlayerColor[]; state: GameState }) => void;
+
+  'voice:user-joined': (payload: { socketId: string; playerId: string; color: PlayerColor; isMuted: boolean }) => void;
+  'voice:user-left': (payload: { socketId: string }) => void;
+  'voice:signal': (payload: { senderSocketId: string; signal: any }) => void;
+  'voice:user-muted': (payload: { socketId: string; isMuted: boolean }) => void;
+  'voice:active-users': (payload: { users: Array<{ socketId: string; playerId: string; color: PlayerColor; isMuted: boolean }> }) => void;
+
+  'player:emoji': (payload: { id: string; emoji: string; color: PlayerColor; playerName: string; timestamp: number }) => void;
 
   'error:notification': (payload: { code: string; message: string }) => void;
 }
