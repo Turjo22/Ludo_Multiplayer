@@ -18,15 +18,30 @@ interface PeerConnectionData {
   hasRemoteDescription: boolean;
 }
 
+// Global STUN & Free Public Open Relay TURN servers (Metered Open Relay project)
+// Standard web ports 80 & 443 with UDP and TCP transport to bypass all cellular and symmetric NATs
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-    { urls: 'stun:stun.relay.metered.ca:80' },
-    { urls: 'stun:global.stun.twilio.com:3478' },
+    { urls: 'stun:openrelay.metered.ca:80' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
   iceCandidatePoolSize: 10,
 };
@@ -45,11 +60,11 @@ export function useWebRTCVoice(
   const peerConnections = useRef<Map<string, PeerConnectionData>>(new Map());
   const audioElements = useRef<Map<string, HTMLAudioElement>>(new Map());
   const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
+  const localAnalyserRef = useRef<AnalyserNode | null>(null);
   const remoteAnalysers = useRef<Map<string, AnalyserNode>>(new Map());
   const animFrameRef = useRef<number | null>(null);
 
-  // Initialize or resume AudioContext on user gesture
+  // Initialize or resume AudioContext for volume analysis
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -65,30 +80,27 @@ export function useWebRTCVoice(
 
   // Monitor speaking levels for local and remote streams
   const startAudioMonitoring = useCallback(() => {
-    const audioCtx = getAudioContext();
-    if (!audioCtx) return;
-
-    const dataArray = new Uint8Array(128);
+    const dataArray = new Uint8Array(64);
 
     const checkLevels = () => {
-      // 1. Local speaking check
-      if (analyserRef.current && !isMuted) {
-        analyserRef.current.getByteFrequencyData(dataArray);
+      // 1. Local speaking level
+      if (localAnalyserRef.current && !isMuted) {
+        localAnalyserRef.current.getByteFrequencyData(dataArray);
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
         const avg = sum / dataArray.length;
-        setIsSpeaking(avg > 14);
+        setIsSpeaking(avg > 15);
       } else {
         setIsSpeaking(false);
       }
 
-      // 2. Remote peers speaking check
+      // 2. Remote peer speaking levels
       remoteAnalysers.current.forEach((analyser, peerSocketId) => {
         analyser.getByteFrequencyData(dataArray);
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
         const avg = sum / dataArray.length;
-        const peerSpeaking = avg > 14;
+        const peerSpeaking = avg > 15;
 
         setVoicePeers((prev) => {
           const peer = prev.get(peerSocketId);
@@ -106,41 +118,45 @@ export function useWebRTCVoice(
 
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     animFrameRef.current = requestAnimationFrame(checkLevels);
-  }, [getAudioContext, isMuted]);
+  }, [isMuted]);
 
-  // Attach audio playback safely with DOM attachment and Web Audio API routing
+  // Attach remote audio securely to DOM-rendered audio element with playsinline and fallback analysis
   const attachRemoteAudio = useCallback(
     (targetSocketId: string, stream: MediaStream) => {
       try {
         const audioCtx = getAudioContext();
 
-        // 1. Web Audio API routing (guarantees playback across mobile restrictions)
+        // Setup remote speaking level detector
         if (audioCtx) {
           try {
             const source = audioCtx.createMediaStreamSource(stream);
-
-            // Speaking detector for this remote peer
             const analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 128;
+            analyser.fftSize = 64;
             source.connect(analyser);
             remoteAnalysers.current.set(targetSocketId, analyser);
-
-            // Connect to audio hardware destination
-            source.connect(audioCtx.destination);
           } catch (ctxErr) {
-            console.warn('[WebRTC Voice] AudioContext source connect error:', ctxErr);
+            console.warn('[WebRTC Voice] Remote analyser connect error:', ctxErr);
           }
         }
 
-        // 2. HTML5 Audio element fallback (attached to DOM with playsinline)
+        // HTML5 Audio Element attached to DOM for hardware speaker output
         let audioEl = audioElements.current.get(targetSocketId);
         if (!audioEl) {
           audioEl = document.createElement('audio');
-          audioEl.id = `remote-audio-${targetSocketId}`;
-          audioEl.style.display = 'none';
+          audioEl.id = `webrtc-audio-${targetSocketId}`;
           audioEl.autoplay = true;
           audioEl.setAttribute('playsinline', 'true');
           audioEl.setAttribute('webkit-playsinline', 'true');
+
+          // Position off-screen instead of display:none so mobile power managers don't suspend playback
+          audioEl.style.position = 'fixed';
+          audioEl.style.top = '-9999px';
+          audioEl.style.left = '-9999px';
+          audioEl.style.width = '1px';
+          audioEl.style.height = '1px';
+          audioEl.style.opacity = '0.01';
+          audioEl.style.pointerEvents = 'none';
+
           document.body.appendChild(audioEl);
           audioElements.current.set(targetSocketId, audioEl);
         }
@@ -148,9 +164,13 @@ export function useWebRTCVoice(
         audioEl.srcObject = stream;
         audioEl.muted = false;
         audioEl.volume = 1.0;
-        audioEl.play().catch((playErr) => {
-          console.warn('[WebRTC Voice] Audio element autoplay caught:', playErr);
-        });
+
+        const playPromise = audioEl.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn('[WebRTC Voice] Autoplay caught, retrying on next interaction:', err);
+          });
+        }
       } catch (err) {
         console.warn('[WebRTC Voice] Failed to attach remote audio:', err);
       }
@@ -158,7 +178,7 @@ export function useWebRTCVoice(
     [getAudioContext]
   );
 
-  // Create a managed PeerConnection with ICE candidate queuing
+  // Create a managed PeerConnection with proper single transceiver & ICE candidate queuing
   const createPeerConnection = useCallback(
     (targetSocketId: string) => {
       // Clean up previous connection if exists
@@ -176,12 +196,7 @@ export function useWebRTCVoice(
         hasRemoteDescription: false,
       };
 
-      // Add bidirectional audio transceiver
-      try {
-        pc.addTransceiver('audio', { direction: 'sendrecv' });
-      } catch {}
-
-      // Add local audio tracks to peer connection
+      // Add local audio tracks (DO NOT add an extra empty transceiver to prevent dual-line silence bug)
       if (localStreamRef.current) {
         localStreamRef.current.getAudioTracks().forEach((track) => {
           pc.addTrack(track, localStreamRef.current!);
@@ -205,9 +220,10 @@ export function useWebRTCVoice(
         attachRemoteAudio(targetSocketId, stream);
       };
 
+      // ICE state monitoring and automatic restart on connection failure
       pc.oniceconnectionstatechange = () => {
         if (pc.iceConnectionState === 'failed') {
-          // Attempt ICE restart
+          console.warn('[WebRTC Voice] ICE Connection failed with peer, restarting ICE...');
           pc.restartIce();
         }
       };
@@ -223,16 +239,22 @@ export function useWebRTCVoice(
     if (!socket) return;
     setVoiceError(null);
 
-    // Unlock AudioContext on user gesture
-    const audioCtx = getAudioContext();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      await audioCtx.resume().catch(() => {});
-    }
+    // 1. Unlock browser audio playback within the user tap gesture
+    try {
+      const dummyAudio = new Audio();
+      dummyAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      dummyAudio.play().catch(() => {});
 
+      const audioCtx = getAudioContext();
+      if (audioCtx && audioCtx.state === 'suspended') {
+        await audioCtx.resume().catch(() => {});
+      }
+    } catch {}
+
+    // 2. Request microphone access with mobile fallback
     try {
       let stream: MediaStream | null = null;
 
-      // 1. Attempt constrained audio (clean voice with echo cancellation)
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -243,7 +265,7 @@ export function useWebRTCVoice(
           video: false,
         });
       } catch {
-        // 2. Mobile fallback without advanced constraints
+        // Fallback for devices that reject advanced constraint objects
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       }
 
@@ -251,15 +273,21 @@ export function useWebRTCVoice(
         throw new Error('Could not access microphone.');
       }
 
+      // Ensure audio tracks are enabled
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = true;
+      });
+
       localStreamRef.current = stream;
 
       // Set up local speaking analyser
+      const audioCtx = getAudioContext();
       if (audioCtx) {
         const localSource = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 128;
+        analyser.fftSize = 64;
         localSource.connect(analyser);
-        analyserRef.current = analyser;
+        localAnalyserRef.current = analyser;
       }
 
       startAudioMonitoring();
@@ -419,7 +447,7 @@ export function useWebRTCVoice(
       });
     });
 
-    // 5. WebRTC P2P Signaling with Candidate Queueing (Solves dropped audio candidates)
+    // 5. WebRTC P2P Signaling with Candidate Queueing
     socket.on('voice:signal', async ({ senderSocketId, signal }) => {
       let peerData = peerConnections.current.get(senderSocketId);
       if (!peerData) {
@@ -452,7 +480,6 @@ export function useWebRTCVoice(
           }
         } else if (signal.candidate) {
           if (!peerData.hasRemoteDescription) {
-            // Queue candidate until remote description is set
             peerData.candidateQueue.push(signal.candidate);
           } else {
             await pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(() => {});
